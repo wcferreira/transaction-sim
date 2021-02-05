@@ -1,0 +1,13 @@
+{:paths ["src"]
+ :deps {
+        org.clojure/clojure {:mvn/version "1.10.1"}
+        ring {:mvn/version "1.8.2"}
+        ring/ring-jetty-adapter {:mvn/version "1.8.2"}
+        ring/ring-defaults {:mvn/version "0.3.2"}
+        ring/ring-json {:mvn/version "0.5.0"}
+        compojure/compojure {:mvn/version "1.6.2"}
+        fundingcircle/jackdaw {:mvn/version "0.7.6"}
+        metosin/jsonista {:mvn/version "0.3.1"}
+        com.datomic/datomic-pro {:mvn/version "1.0.6242"}}
+ :mvn/repos {"confluent" {:url "http://packages.confluent.io/maven/"}
+             "my.datomic.com" {:url "https://my.datomic.com/repo"}}}
