@@ -1,68 +1,30 @@
 (ns transactions.core
-  (:require [ring.adapter.jetty :as jetty]
-            [ring.middleware.reload :refer [wrap-reload]]
-            [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
-            [ring.handler.dump :refer [handle-dump]]
-            [compojure.core :refer [defroutes GET POST PUT DELETE]]
-            [compojure.route :refer [not-found]]
-            [jsonista.core :as json]
-            [kafka.producer :as kp]
-            [persistence.db :as db])
-  (:import java.util.UUID))
+  (:require [io.pedestal.http :as http]
+            [io.pedestal.http.body-params :as body-param]
+            [handlers.handle :as hh]))
 
-(def conn (db/open-connection))
+(def routes
+  #{["/transactions" :get  hh/list-transactions  :route-name :get-transactions]
+    ["/transactions" :post hh/create-transaction :route-name :post-transactions]})
 
-(defn normalize-data [data]
-  (->> data
-       flatten
-       json/write-value-as-string))
+(def service-map
+  (-> {::http/routes routes
+       ::http/port 8000
+       ::http/type :jetty}
+      http/default-interceptors
+      (update ::http/interceptors conj (body-param/body-params))))
 
-(defn greet [req]
-  {:status 200
-   :body "Hello PayGo!"
-   :headers {"Content-Type" "text/plain"}})
+(defonce server (atom nil))
 
-(defn list-transactions [req]
-  (let [data-db (db/get-all-transactions conn)
-        trx-list (normalize-data data-db)]
-    {:status 200
-     :body trx-list
-     :headers {"Content-Type" "application/json"}}))
+(defn go []
+  (reset! server
+          (http/start (http/create-server
+                        (assoc service-map ::http/join? false))))
+  (prn "Server started on localhost:8000")
+  :started)
 
-(defn add-transaction-id [trx]
-  (assoc trx "id" (UUID/randomUUID)))
-
-(defn create-transaction [req]
-  (handle-dump req)
-  (let [body (:body req)
-        trx (add-transaction-id body)]
-    (println "Dumping the body request")
-    (println trx)
-    (kp/produce trx)
-    {:status  201
-     :body    trx
-     :headers {"Content-Type" "application/json"}}))
-
-(defroutes routes
-  (GET "/" [] greet)
-  (GET "/transactions" [] list-transactions)
-  (POST "/transactions" [] create-transaction)
-  (not-found "Endpoint not found!"))
-
-
-(def app
-  (->> routes
-       wrap-json-response
-       wrap-json-body))
-
-(defn set-server-port [port]
-  {:port (Integer. port)})
-
-(defn -main [port]
-  (jetty/run-jetty app (set-server-port port)))
-
-(defn -dev-main [port]
-  (jetty/run-jetty (wrap-reload #'app) (set-server-port port)))
+(defn halt []
+  (http/stop @server))
 
 ;; Running Server
-;; (-dev-main 8000)
+;; (go)
